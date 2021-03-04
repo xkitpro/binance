@@ -5,10 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"time"
 
 	"github.com/google/go-querystring/query"
@@ -113,12 +111,11 @@ func (c *Client) Do(req *http.Request, v interface{}) (*http.Response, error) {
 	}
 	defer resp.Body.Close()
 
-	r := io.TeeReader(resp.Body, os.Stderr)
+	// r := io.TeeReader(resp.Body, os.Stderr)
 
 	if v != nil {
-		err = json.NewDecoder(r).Decode(&v)
+		err = json.NewDecoder(resp.Body).Decode(&v)
 	}
-	fmt.Fprintln(os.Stderr)
 
 	return resp, err
 }
@@ -162,20 +159,38 @@ func (c *Client) CloseUserDataStream() (*http.Response, error) {
 }
 
 type Candletick struct {
-	OpenTime  int `json:"0"`
-	Open      float64
-	High      float64
-	Low       float64
-	Close     float64
-	Volume    float64
+	OpenTime  int
+	Open      json.Number
+	High      json.Number
+	Low       json.Number
+	Close     json.Number
+	Volume    json.Number
 	CloseTime int
+}
+
+func (o *Candletick) UnmarshalJSON(b []byte) error {
+	t := []interface{}{
+		&o.OpenTime,
+		&o.Open,
+		&o.High,
+		&o.Low,
+		&o.Close,
+		&o.Volume,
+		&o.CloseTime,
+	}
+
+	if err := json.Unmarshal(b, &t); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 type CandlestickDataOptions struct {
 	Symbol    string `url:"symbol"`
 	Interval  string `url:"interval"`
-	StartTime int    `url:"startTime,omitempty"`
-	EndTime   int    `url:"endTime,omitempty"`
+	StartTime int64  `url:"startTime,omitempty"`
+	EndTime   int64  `url:"endTime,omitempty"`
 	Limit     int    `url:"limit,omitempty"`
 }
 
